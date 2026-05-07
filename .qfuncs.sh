@@ -799,9 +799,9 @@ deprecated() {
       warn "${FUNCNAME[1]} deprecated permanently: $*"
 
       if [ $SHLVL -le 1 ]; then
-         pause this shell will quit
+         ok_pause this shell will quit
       fi
-      exit 101 # calling 'die' seems to cause an infinite loop on maybe_rm
+      return 1 # calling 'die' seems to cause an infinite loop on maybe_rm
       ;;
    esac 1>/dev/stderr
 }
@@ -1234,101 +1234,104 @@ gdate() {
 }
 
 azonly() {
+   deprecated 1
+   warn use azonly.pl
+   azonly.pl "$@" 
    # Reads STDIN replacing all non-az characters with REPL_CHAR
    # usage: azonly [-l|--lowercase] [-REPL_CHAR] [TEXT]
    # reads STDIN unless TEXT provided
    # defaults '-' as REPL_CHAR unless -REPL_CHAR provided'
    # output to STDOUT
 
-   local repl="-"
-   local lowercase=false
-   local arg_text=""
-   local az_pattern='[a-zA-Z0-9\._-]'
-   local azonly_line
-   local max_length=0
+   # local repl="-"
+   # local lowercase=false
+   # local arg_text=""
+   # local az_pattern='[a-zA-Z0-9\._-]'
+   # local azonly_line
+   # local max_length=0
 
-   while [[ $1 =~ ^- ]]; do
-      case $1 in
-      -h | --help)
-         echo "Usage: azonly [--lowercase] [-REPL_CHAR] [TEXT]"
-         echo "Reads TEXT or STDIN replacing all non-az characters with REPL_CHAR."
-         echo "Defaults to '-' as REPL_CHAR unless -REPL_CHAR provided."
-         return 0
-         ;;
-      -l | --lowercase)
-         lowercase=true
-         shift
-         ;;
-      # numeric:
-      -[0-9]*)
-         local max_length=${1#-}
-         shift
-         ;;
-      *)
-         repl="${1:1:1}"
-         shift
-         ;;
-      esac
-   done
+   # while [[ $1 =~ ^- ]]; do
+   #    case $1 in
+   #    -h | --help)
+   #       echo "Usage: azonly [--lowercase] [-REPL_CHAR] [TEXT]"
+   #       echo "Reads TEXT or STDIN replacing all non-az characters with REPL_CHAR."
+   #       echo "Defaults to '-' as REPL_CHAR unless -REPL_CHAR provided."
+   #       return 0
+   #       ;;
+   #    -l | --lowercase)
+   #       lowercase=true
+   #       shift
+   #       ;;
+   #    # numeric:
+   #    -[0-9]*)
+   #       local max_length=${1#-}
+   #       shift
+   #       ;;
+   #    *)
+   #       repl="${1:1:1}"
+   #       shift
+   #       ;;
+   #    esac
+   # done
 
-   # Capture remaining arguments as text
-   arg_text="$*"
+   # # Capture remaining arguments as text
+   # arg_text="$*"
 
-   az_sanitize() {
-      local input_text
-      input_text=$(cat)
+   # az_sanitize() {
+   #    local input_text
+   #    input_text=$(cat)
 
-      # Trim whitespace from beginning and end
-      input_text="${input_text#"${input_text%%[![:space:]]*}"}"
-      input_text="${input_text%"${input_text##*[![:space:]]}"}"
+   #    # Trim whitespace from beginning and end
+   #    input_text="${input_text#"${input_text%%[![:space:]]*}"}"
+   #    input_text="${input_text%"${input_text##*[![:space:]]}"}"
 
-      local strlen=${#input_text}
-      local encoded=""
-      local pos c o
-      local output_length=0
+   #    local strlen=${#input_text}
+   #    local encoded=""
+   #    local pos c o
+   #    local output_length=0
 
-      for ((pos = 0; pos < strlen; pos++)); do
+   #    for ((pos = 0; pos < strlen; pos++)); do
 
-         # Stop if we've reached max_length in output
-         if [ "$max_length" -gt 0 ] && [ "$output_length" -ge "$max_length" ]; then
-            break
-         fi
+   #       # Stop if we've reached max_length in output
+   #       if [ "$max_length" -gt 0 ] && [ "$output_length" -ge "$max_length" ]; then
+   #          break
+   #       fi
 
-         c=${input_text:$pos:1}
+   #       c=${input_text:$pos:1}
 
-         #shellcheck disable=SC2254
-         case "$c" in
+   #       #shellcheck disable=SC2254
+   #       case "$c" in
 
-         $az_pattern)
-            o="${c}"
-            ((++output_length))
-            ;;
-         *)
-            printf -v o '%s' "$repl"
-            ((++output_length))
-            ;;
-         esac
+   #       $az_pattern)
+   #          o="${c}"
+   #          ((++output_length))
+   #          ;;
+   #       *)
+   #          printf -v o '%s' "$repl"
+   #          ((++output_length))
+   #          ;;
+   #       esac
 
-         encoded+="${o}"
+   #       encoded+="${o}"
 
-      done
+   #    done
 
-      # Trim replacement characters from beginning and end
-      encoded="${encoded#"${encoded%%[!${repl}]*}"}"
-      encoded="${encoded%"${encoded##*[!${repl}]}"}"
+   #    # Trim replacement characters from beginning and end
+   #    encoded="${encoded#"${encoded%%[!${repl}]*}"}"
+   #    encoded="${encoded%"${encoded##*[!${repl}]}"}"
 
-      if [ "$lowercase" = true ]; then
-         echo "${encoded,,}"
-      else
-         echo "${encoded}"
-      fi
-   }
+   #    if [ "$lowercase" = true ]; then
+   #       echo "${encoded,,}"
+   #    else
+   #       echo "${encoded}"
+   #    fi
+   # }
 
-   if [ -n "$arg_text" ]; then
-      echo "$arg_text" | az_sanitize
-   else
-      az_sanitize
-   fi
+   # if [ -n "$arg_text" ]; then
+   #    echo "$arg_text" | az_sanitize
+   # else
+   #    az_sanitize
+   # fi
 }
 
 azrandomize() {
