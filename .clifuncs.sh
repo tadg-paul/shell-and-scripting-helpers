@@ -340,12 +340,8 @@ pull() {
       # show_cmd_execute git pull --recurse-submodules
       # popd || return
    else
-      if [ "$1" == "-r" ]; then
-         show_cmd_execute git pull origin master --recurse-submodules
-         show_cmd_execute git submodule update --remote
-      else
-         show_cmd_execute git pull
-      fi
+      show_cmd_execute git pull origin master --recurse-submodules
+      show_cmd_execute git submodule update --remote
    fi
 }
 
