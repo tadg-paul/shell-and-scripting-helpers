@@ -626,23 +626,18 @@ confirm_continue() {
 }
 
 show_cmd_execute() {
-   local pre_tell=true
-   local bright=$'\e[1m' green=$'\e[0;32m' red=$'\e[0;31m' reset=$'\e[0m'
-   if [[ "$1" == "-q" ]]; then
-      pre_tell=false
-      shift
-   fi
 
-   if $pre_tell; then
-      printf '%s %s%s%s\n' "⚡️" "$bright" "$*" "$reset" >/dev/stderr
-   fi
+   local bright=$'\e[1m' green=$'\e[0;32m' red=$'\e[0;31m' reset=$'\e[0m'
+
    "$@"
    rc=$?
+
    if [ $rc -eq 0 ]; then
-      printf '%s %s%s%s\n' '🟢' "$bright$green" "$*" "$reset"
+      printf '%s %s%s%s\n' '⚡️' "$green" "$*" "$reset"
    else
       printf '%s %s%s%s\n' '🔴' "$bright$red" "$*" "$reset"
-   fi >/dev/stderr
+   fi >&2
+
    return $rc
 }
 show_cmd() { # wrapper
@@ -650,6 +645,7 @@ show_cmd() { # wrapper
 }
 
 show_cmd_execute_oneline() {
+   deprecated 1
    echo -n "⚡️ $*" >/dev/stderr
    "$@" 2>&1 | oneline
 }
