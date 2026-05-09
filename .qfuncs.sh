@@ -626,8 +626,24 @@ confirm_continue() {
 }
 
 show_cmd_execute() {
-   echo "⚡️ $*" >/dev/stderr
+   local pre_tell=true
+   local bright=$'\e[1m' green=$'\e[0;32m' red=$'\e[0;31m' reset=$'\e[0m'
+   if [[ "$1" == "-q" ]]; then
+      pre_tell=false
+      shift
+   fi
+
+   if $pre_tell; then
+      printf '%s %s%s%s\n' "⚡️" "$bright" "$*" "$reset" >/dev/stderr
+   fi
    "$@"
+   rc=$?
+   if [ $rc -eq 0 ]; then
+      printf '%s %s%s%s\n' '🟢' "$bright$green" "$*" "$reset"
+   else
+      printf '%s %s%s%s\n' '🔴' "$bright$red" "$*" "$reset"
+   fi >/dev/stderr
+   return $rc
 }
 show_cmd() { # wrapper
    show_cmd_execute "$@"
@@ -1236,7 +1252,7 @@ gdate() {
 azonly() {
    deprecated 1
    warn use azonly.pl
-   azonly.pl "$@" 
+   azonly.pl "$@"
    # Reads STDIN replacing all non-az characters with REPL_CHAR
    # usage: azonly [-l|--lowercase] [-REPL_CHAR] [TEXT]
    # reads STDIN unless TEXT provided
@@ -1515,6 +1531,31 @@ rm_if() {
    done 2>&1
 }
 
+cp_bak() {
+   # USAGE: cp_bak_if ITEM
+   # if ITEM exists, copy it to ITEM.bak or ITEM.N.bak
+   # puts the backup item in REPLY
+
+   if [ $# -eq 0 ]; then
+      die "cp_bak_if: no file specified"
+   fi
+   local src="${1%/}" #  remove trailing '/' in case it's a directory!
+   local bak_target="$src.bak"
+   local index=1
+
+   while [[ -e "$bak_target" ]]; do
+      bak_target="${src}.$index.bak"
+      ((index++))
+   done
+
+   if [ -e "$src" ]; then
+      show_cmd_execute cp -n "$src" "$bak_target" || die "Failed to create backup: $bak_target"
+      REPLY="$bak_target"
+   else
+      unset REPLY
+   fi
+}
+
 mv_bak_if() {
    # USAGE: mv_bak_if ITEM
    # if ITEM exists, move it to ITEM.bak or ITEM.N.bak
@@ -1533,8 +1574,8 @@ mv_bak_if() {
    done
 
    if [ -e "$src" ]; then
+      mv -n "$src" "$bak_target" || die "Failed to create backup: $bak_target"
       warn "$src -> $bak_target"
-      mv -f "$src" "$bak_target" || die "Failed to create backup: $bak_target"
       REPLY="$bak_target"
    else
       unset REPLY
