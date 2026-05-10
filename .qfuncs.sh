@@ -627,16 +627,15 @@ confirm_continue() {
 
 show_cmd_execute() {
 
-   local bright=$'\e[1m' green=$'\e[0;32m' red=$'\e[0;31m' reset=$'\e[0m'
+   local bright=$'\e[1m' yellow=$'\e[0;33m' reset=$'\e[0m'
 
+   echo -e "⚡️${yellow} $*${reset}"
    "$@"
    rc=$?
 
    if [ $rc -eq 0 ]; then
-      printf '%s %s%s%s\n' '⚡️' "$green" "$*" "$reset"
-   else
-      printf '%s %s%s%s\n' '🔴' "$bright$red" "$*" "$reset"
-   fi >&2
+      echo -ne "🟢"
+   fi
 
    return $rc
 }
