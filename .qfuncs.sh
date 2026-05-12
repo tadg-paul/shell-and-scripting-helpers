@@ -253,6 +253,24 @@ qbase() {
    # printf -v REPLY '%s' "${tmp}"
 }
 
+ensure_term_size() {
+   # Lazy: sets COLUMNS and LINES only if not already set sensibly.
+   # No fork if COLUMNS is good; no fork if not a tty (uses defaults);
+   # at most one stty fork per script lifetime, cached via COLUMNS.
+
+   [[ "${COLUMNS:-0}" -gt 0 ]] && return 0
+
+   if [[ -t 1 ]]; then
+      read -r LINES COLUMNS < <(stty size </dev/tty 2>/dev/null) || true
+   fi
+
+   # final fallback: non-tty, or stty failed
+   [[ "${COLUMNS:-0}" -gt 0 ]] || {
+      COLUMNS=80
+      LINES=24
+   }
+}
+
 hline() {
 
    # pretty print a header/title or else just a spacer line
@@ -265,6 +283,7 @@ hline() {
    # 🧌 HERE BE DRAGONS, I'M SO SORRY
 
    local cols tmp_out
+   ensure_term_size
    ((cols = COLUMNS > 0 ? COLUMNS - 1 : 65))
 
    local hline_bullet="${hline:-=}"
@@ -629,13 +648,16 @@ show_cmd_execute() {
 
    local bright=$'\e[1m' yellow=$'\e[0;33m' reset=$'\e[0m'
 
-   echo -e "⚡️${yellow} $*${reset}"
+   echo -e "⚡️ ${bright}$*${reset}"
    "$@"
    rc=$?
 
    if [ $rc -eq 0 ]; then
       echo -ne "🟢"
+   else
+      echo -ne "🔴"
    fi
+   echo " $rc"
 
    return $rc
 }

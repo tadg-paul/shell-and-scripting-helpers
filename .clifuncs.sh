@@ -467,4 +467,59 @@ _deploy_completion() {
    COMPREPLY=("${files[@]}")
 }
 
+convert() {
+   # wrapper for magick
+   info "Run: magick $*"
+   magick "$@"
+}
+
+cat() {
+   # Overriding the CLI command to gracefully use chafa and bat where available
+   # to enable the in-terminal display of images and syntax-highlighted text files.
+
+   if [[ "$1" == "--" ]]; then
+      shift
+   fi
+
+   if [ $# -eq 0 ] || [[ "$1" == "-" ]]; then
+      command cat "$@"
+      return
+   elif [[ $1 =~ ^- ]]; then
+      warn "This command has been overridden in the CLI by ${BASH_SOURCE[0]}. Use 'command cat' to access the original cat command."
+      return 1
+   fi
+
+   local is_tty=false
+   if [[ -t 1 ]]; then
+      is_tty=true
+   fi
+
+   if "$is_tty" && command -v bat >/dev/null 2>&1; then
+      text_display_cmd=(bat)
+   else
+      text_display_cmd=(command cat)
+   fi
+
+   if command -v chafa >/dev/null 2>&1; then
+      image_display_cmd=(chafa)
+   elif "$is_tty" && command -v qlmanage >/dev/null 2>&1; then
+      image_display_cmd=(qlmanage -p)
+   elif "$is_tty" && command -v magick >/dev/null 2>&1; then
+      image_display_cmd=(magick display)
+   else
+      image_display_cmd=(errortext "No image display command available for: ")
+   fi
+
+   while [ $# -gt 0 ]; do
+      hline "📃 $1" >&2
+      if magick identify "$1" >/dev/null 2>&1; then
+         "${image_display_cmd[@]}" "$1"
+      else
+         "${text_display_cmd[@]}" "$1"
+      fi
+      shift
+   done
+   hline >&2
+}
+
 complete -F _deploy_completion deploy-app deploy-hugo
