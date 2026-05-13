@@ -466,6 +466,7 @@ _deploy_completion() {
 
    COMPREPLY=("${files[@]}")
 }
+complete -F _deploy_completion deploy-app deploy-hugo deploy-nix
 
 convert() {
    # wrapper for magick
@@ -473,9 +474,32 @@ convert() {
    magick "$@"
 }
 
+imgcat() {
+   local image_viewers_pref=(timg chafa "qlmanage -p" "magick display")
+
+   local width height
+   if ! read -r width height < <(magick identify -format "%w %h " "$1"); then
+      errortext "Failed to identify image dimensions for: $1"
+      return 1
+   fi
+
+      if [ $width -gt $height ]; then
+      landscape=true
+      else
+      landscape=false
+      fi
+
+}
+
 cat() {
-   # Overriding the CLI command to gracefully use chafa and bat where available
-   # to enable the in-terminal display of images and syntax-highlighted text files.
+   # ABOUTME: Override cat for interactive terminals to display images via timg/chafa
+   # ABOUTME: and syntax-highlighted text via bat, with binary file protection.
+
+   # Non-interactive: pass through to real cat
+   if ! is_interactive; then
+      command cat "$@"
+      return $?
+   fi
 
    if [[ "$1" == "--" ]]; then
       shift
@@ -485,38 +509,71 @@ cat() {
       command cat "$@"
       return
    elif [[ $1 =~ ^- ]]; then
-      warn "This command has been overridden in the CLI by ${BASH_SOURCE[0]}. Use 'command cat' to access the original cat command."
+      warn "This command has been overridden in ${BASH_SOURCE[0]}. Use 'command cat' for the original."
       return 1
    fi
 
-   local is_tty=false
-   if [[ -t 1 ]]; then
-      is_tty=true
-   fi
-
-   if "$is_tty" && command -v bat >/dev/null 2>&1; then
+   local text_display_cmd
+   if command -v bat >/dev/null 2>&1; then
       text_display_cmd=(bat)
    else
       text_display_cmd=(command cat)
    fi
 
-   if command -v chafa >/dev/null 2>&1; then
-      image_display_cmd=(chafa)
-   elif "$is_tty" && command -v qlmanage >/dev/null 2>&1; then
-      image_display_cmd=(qlmanage -p)
-   elif "$is_tty" && command -v magick >/dev/null 2>&1; then
-      image_display_cmd=(magick display)
-   else
-      image_display_cmd=(errortext "No image display command available for: ")
-   fi
-
-   while [ $# -gt 0 ]; do
-      hline "📃 $1" >&2
-      if magick identify "$1" >/dev/null 2>&1; then
-         "${image_display_cmd[@]}" "$1"
-      else
-         "${text_display_cmd[@]}" "$1"
+   local image_display_cmd=()
+   local viewer_cmd
+   for viewer_cmd in "${image_viewers_pref[@]}"; do
+      if command -v ${viewer_cmd%% *} >/dev/null 2>&1; then
+         # shellcheck disable=SC2206
+         # Deliberately splitting: entries like "qlmanage -p" need word split
+         image_display_cmd=($viewer_cmd)
+         break
       fi
+   done
+
+   ensure_term_size
+
+   local display_lines=0
+   display_increment() {
+      if [ $display_lines -ge $LINES ]; then
+         read -n 1 -s -r -p "Press the [ANY] key for more ..." </dev/tty
+         clear
+         printf '%s\n' "$*"
+         display_lines=1
+      else
+         printf '%s\n' "$*"
+         display_lines=$((display_lines + 1))
+      fi
+   }
+
+   local file mime mime_type mime_encoding
+   for file in "$@"; do
+      if ! [ -e "$file" ]; then
+         errortext "No such file: $file"
+         continue
+      fi
+
+      hline "📃 $file"
+      display_lines=$((display_lines + 1))
+
+      read -r mimetype < <(mimetype "$file")
+
+      if [[ "$mimetype" == image/* ]]; then
+         if [ ${#image_display_cmd[@]} -eq 0 ]; then
+            errortext "No image viewer available for: $file"
+         else
+            "${image_display_cmd[@]}" "$file"
+         fi
+         display_lines=$((display_lines + LINES))
+
+      elif is_binary "$file"; then
+         display_increment "Binary file: $file ($mimetype)"
+      else
+         "${text_display_cmd[@]}" "$file" | while IFS= read -r line; do
+            display_increment "$line"
+         done
+      fi
+
       shift
    done
    hline >&2

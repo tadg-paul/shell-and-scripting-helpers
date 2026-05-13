@@ -976,16 +976,6 @@ qpager() {
    "$qpager"
 }
 
-qln() {
-   local qln=ln
-
-   if command -v gln >/dev/null 2>&1; then
-      qln=gln
-   fi
-
-   "$qln" "$@"
-}
-
 open() {
    if [[ $_os == Darwin ]]; then
       command open "$@"
@@ -1512,19 +1502,11 @@ fi
 export qf_loaded=true
 
 is_interactive() {
-   case $- in
-   *i*) return 0 ;; # Interactive shell
-   *) return 1 ;;   # Non-interactive (called from script)
-   esac
-}
-
-is_image() {
-   for ext in "${imgext[@]}"; do
-      if [[ "$1" == *.$ext ]]; then
-         return 0
-      fi
-   done
-   return 1
+   if [ -t 1 ]; then
+      return 0
+   else
+      return 1
+   fi
 }
 
 rm_if() {
@@ -1876,4 +1858,70 @@ github_repo_url() {
    else
       echo "$url_stem"
    fi
+}
+
+is_binary() {
+   local file="$1"
+   local encoding
+   encoding=$(file --mime-encoding -b "$file")
+   [[ "$encoding" == "binary" ]]
+}
+
+is_plaintext() {
+   local file="$1"
+
+   if [ ! -e "$file" ]; then
+      errortext "file not found: $file"
+      return 1
+   fi
+
+   ! is_binary "$file"
+}
+
+mimetype() {
+   local file="$1"
+   local mimetype
+
+   if [ ! -e "$file" ]; then
+      errortext "file not found: $file"
+      return 1
+   fi
+
+   read -r REPLY < <(file --mime-type -b "$file")
+   echo "$REPLY"
+}
+
+is_image() {
+   local file="$1"
+   # fastest
+
+   if [ ! -e "$file" ]; then
+      errortext "file not found: $file"
+      return 1
+   fi
+
+   if [ ${#imgext[@]} -eq 0 ]; then
+      # default extensions to check if imgext array is empty
+      warn "imgest not set, using default extensions: jpg jpeg png gif bmp svg"
+      imgext=(jpg jpeg png gif bmp svg)
+   fi
+
+   for ext in "${imgext[@]}"; do
+      if [[ "$file" == *".$ext" ]]; then
+         return 0
+      fi
+   done
+
+   # if command -v magick >/dev/null 2>&1; then
+   #    magick identify "$file" >/dev/null 2>&1 && return 0
+   # fi
+
+   # read -r file_mimetype < <(mimetype "$file")
+   # if [[ $file_mimetype == image/* ]]; then
+   #    return 0
+   # else
+   #    return 1
+   # fi
+
+   return 1
 }
