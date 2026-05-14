@@ -261,7 +261,7 @@ ensure_term_size() {
    [[ "${COLUMNS:-0}" -gt 0 ]] && return 0
 
    if [[ -t 1 ]]; then
-      read -r LINES COLUMNS < <(stty size </dev/tty 2>/dev/null) || true
+      read -r LINES COLUMNS < <(stty size </dev/tty 2>/dev/null)
    fi
 
    # final fallback: non-tty, or stty failed

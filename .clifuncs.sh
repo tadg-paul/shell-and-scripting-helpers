@@ -475,31 +475,40 @@ convert() {
 }
 
 imgcat() {
-   local image_viewers_pref=(timg chafa "qlmanage -p" "magick display")
 
-   local width height
-   if ! read -r width height < <(magick identify -format "%w %h " "$1"); then
-      errortext "Failed to identify image dimensions for: $1"
-      return 1
+   is_interactive || return 1
+   ensure_term_size
+
+   local aspect_ratio_terminal_viewport aspect_ratio_image image_is_short max_display_height
+
+   aspect_ratio_terminal_viewport="$COLUMNS/$((LINES - 2))"
+   read -r aspect_ratio_image < <(magick identify -format "%w/%h" "$1")
+   read -r image_is_short < <(bc -e "scale=6; $aspect_ratio_terminal_viewport > $aspect_ratio_image")
+
+   if [[ $image_is_short -eq 1 ]]; then
+      max_display_height="$((LINES - 2))"
+   else
+      max_display_height="$((LINES / 2 - 2))"
    fi
 
-      if [ $width -gt $height ]; then
-      landscape=true
-      else
-      landscape=false
-      fi
+   if [[ $LINES -gt 25 ]]; then
+      max_display_height=$((max_display_height / 2))
+   fi
 
+   wezterm imgcat --height $max_display_height "$1"
+   REPLY=$max_display_height
 }
 
-cat() {
-   # ABOUTME: Override cat for interactive terminals to display images via timg/chafa
-   # ABOUTME: and syntax-highlighted text via bat, with binary file protection.
+icat() {
+   # conctenate list for displaying text and images in terminal.
 
    # Non-interactive: pass through to real cat
    if ! is_interactive; then
       command cat "$@"
       return $?
    fi
+
+   ensure_term_size
 
    if [[ "$1" == "--" ]]; then
       shift
@@ -520,8 +529,8 @@ cat() {
       text_display_cmd=(command cat)
    fi
 
-   local image_display_cmd=()
-   local viewer_cmd
+   local image_display_cmd=(imgcat)
+
    for viewer_cmd in "${image_viewers_pref[@]}"; do
       if command -v ${viewer_cmd%% *} >/dev/null 2>&1; then
          # shellcheck disable=SC2206
@@ -531,18 +540,17 @@ cat() {
       fi
    done
 
-   ensure_term_size
-
-   local display_lines=0
+   local display_lines=0 display_increment_key display_increment_by
    display_increment() {
-      if [ $display_lines -ge $LINES ]; then
-         read -n 1 -s -r -p "Press the [ANY] key for more ..." </dev/tty
+      local display_increment_by=${1:-1}
+      display_lines=$((display_lines + display_increment_by))
+      if [ $display_lines -ge $((LINES - 2)) ]; then
+         read -n 1 -s -r -p "Press the [ANY] key for more ..." display_increment_key </dev/tty
+         if [[ ${display_increment_key,,} == q ]]; then
+            return 1
+         fi
          clear
-         printf '%s\n' "$*"
-         display_lines=1
-      else
-         printf '%s\n' "$*"
-         display_lines=$((display_lines + 1))
+         display_lines=0
       fi
    }
 
@@ -559,18 +567,15 @@ cat() {
       read -r mimetype < <(mimetype "$file")
 
       if [[ "$mimetype" == image/* ]]; then
-         if [ ${#image_display_cmd[@]} -eq 0 ]; then
-            errortext "No image viewer available for: $file"
-         else
-            "${image_display_cmd[@]}" "$file"
-         fi
-         display_lines=$((display_lines + LINES))
-
+         "${image_display_cmd[@]}" "$file"
+         display_increment $REPLY || return 0
       elif is_binary "$file"; then
-         display_increment "Binary file: $file ($mimetype)"
+         echo "👾 Binary file: $file ($mimetype)"
+         display_increment || return 0
       else
          "${text_display_cmd[@]}" "$file" | while IFS= read -r line; do
-            display_increment "$line"
+            printf '%s\n' "$line"
+            display_increment || return 0
          done
       fi
 
