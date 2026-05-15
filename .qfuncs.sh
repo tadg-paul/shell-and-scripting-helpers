@@ -1147,16 +1147,26 @@ oneline() {
 
 nowrap() {
    # this function outputs text but truncates if it exceeds the terminal width
-   # usage: pipe to this to prevent wrapping
-   # e.g. ls -l | nowrap
-   if [ -z "$COLUMNS" ]; then
-      read -r COLUMNS < <(tput cols)
+   # or -n if specified e.g. 'ls -l | nowrap -n20' to truncate to 20 chars
+   # reads from stdin
+   local trunc_txt="..."
+   if [[ "$1" =~ ^-([0-9]+)$ ]]; then
+      local maxcols="${BASH_REMATCH[1]}"
+   else
+      ensure_term_size
+      local maxcols=$((COLUMNS - 1))
    fi
 
-   maxcols=$((COLUMNS - 1))
-
+   local maxcols_truncated=$((maxcols - ${#trunc_txt}))
    while read -r nowrap_line; do
-      echo -e "${nowrap_line:0:$maxcols}"
+      if [[ ${#nowrap_line} -gt $maxcols ]]; then
+         if [[ $maxcols -gt ${#trunc_txt} ]]; then
+            nowrap_line="${nowrap_line:0:$maxcols_truncated}$trunc_txt"
+         else
+            nowrap_line="${nowrap_line:0:$maxcols}"
+         fi
+      fi
+      echo "${nowrap_line}"
    done
 }
 

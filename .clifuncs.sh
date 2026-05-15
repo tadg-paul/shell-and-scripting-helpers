@@ -466,6 +466,7 @@ _deploy_completion() {
 
    COMPREPLY=("${files[@]}")
 }
+
 complete -F _deploy_completion deploy-app deploy-hugo deploy-nix
 
 convert() {
@@ -479,23 +480,35 @@ imgcat() {
    is_interactive || return 1
    ensure_term_size
 
+   local fixed_height=0
+   if [[ $1 =~ ^-([0-9]+])$ ]]; then
+      fixed_height=${BASH_REMATCH[1]}
+      shift
+   fi
+   local file="$1"
+
    local aspect_ratio_terminal_viewport aspect_ratio_image image_is_short max_display_height
 
-   aspect_ratio_terminal_viewport="$COLUMNS/$((LINES - 2))"
-   read -r aspect_ratio_image < <(magick identify -format "%w/%h" "$1")
-   read -r image_is_short < <(bc -e "scale=6; $aspect_ratio_terminal_viewport > $aspect_ratio_image")
-
-   if [[ $image_is_short -eq 1 ]]; then
-      max_display_height="$((LINES - 2))"
+   if [ $fixed_height -gt 0 ]; then
+      wezterm_opts=(--height $fixed_height)
    else
-      max_display_height="$((LINES / 2 - 2))"
+      aspect_ratio_terminal_viewport="$COLUMNS/$((LINES - 2))"
+      read -r aspect_ratio_image < <(magick identify -format "%w/%h" "$file")
+      read -r image_is_short < <(bc -e "scale=6; $aspect_ratio_terminal_viewport > $aspect_ratio_image")
+
+      if [[ $image_is_short -eq 1 ]]; then
+         max_display_height="$((LINES - 2))"
+      else
+         max_display_height="$((LINES / 2 - 2))"
+      fi
+
+      if [[ $LINES -gt 25 ]]; then
+         max_display_height=$((max_display_height / 2))
+      fi
+      wezterm_opts=(--height $max_display_height)
    fi
 
-   if [[ $LINES -gt 25 ]]; then
-      max_display_height=$((max_display_height / 2))
-   fi
-
-   wezterm imgcat --height $max_display_height "$1"
+   wezterm imgcat "${wezterm_opts[@]}" "$file"
    REPLY=$max_display_height
 }
 
@@ -509,18 +522,26 @@ icat() {
    fi
 
    ensure_term_size
+   local fixed_height=0
+   local pager=true
+   local stdin=false
 
-   if [[ "$1" == "--" ]]; then
+   while [ $# -gt 0 ]; do
+      if [[ "$1" == "--" ]]; then
+         shift
+         break
+      elif [[ "$1" == "-" ]]; then
+         stdin=true
+      elif [[ "$1" =~ ^-([0-9]+)$ ]]; then
+         fixed_height=${BASH_REMATCH[1]}
+      elif [[ "$1" =~ ^--?(n|no-pager)?$ ]]; then
+         pager=false
+      else
+         args=("$@")
+         break
+      fi
       shift
-   fi
-
-   if [ $# -eq 0 ] || [[ "$1" == "-" ]]; then
-      command cat "$@"
-      return
-   elif [[ $1 =~ ^- ]]; then
-      warn "This command has been overridden in ${BASH_SOURCE[0]}. Use 'command cat' for the original."
-      return 1
-   fi
+   done
 
    local text_display_cmd
    if command -v bat >/dev/null 2>&1; then
@@ -529,33 +550,23 @@ icat() {
       text_display_cmd=(command cat)
    fi
 
-   local image_display_cmd=(imgcat)
-
-   for viewer_cmd in "${image_viewers_pref[@]}"; do
-      if command -v ${viewer_cmd%% *} >/dev/null 2>&1; then
-         # shellcheck disable=SC2206
-         # Deliberately splitting: entries like "qlmanage -p" need word split
-         image_display_cmd=($viewer_cmd)
-         break
-      fi
-   done
-
    local display_lines=0 display_increment_key display_increment_by
    display_increment() {
       local display_increment_by=${1:-1}
       display_lines=$((display_lines + display_increment_by))
-      if [ $display_lines -ge $((LINES - 2)) ]; then
+      if [ $display_lines -ge $((LINES - 2)) ] && $pager; then
          read -n 1 -s -r -p "Press the [ANY] key for more ..." display_increment_key </dev/tty
+         # clear the current line
+         printf '\r%*s\r' "$((COLUMNS - 1))" ''
          if [[ ${display_increment_key,,} == q ]]; then
             return 1
          fi
-         clear
          display_lines=0
       fi
    }
 
    local file mime mime_type mime_encoding
-   for file in "$@"; do
+   for file in "${args[@]}"; do
       if ! [ -e "$file" ]; then
          errortext "No such file: $file"
          continue
@@ -567,7 +578,7 @@ icat() {
       read -r mimetype < <(mimetype "$file")
 
       if [[ "$mimetype" == image/* ]]; then
-         "${image_display_cmd[@]}" "$file"
+         imgcat -$fixed_height "$file"
          display_increment $REPLY || return 0
       elif is_binary "$file"; then
          echo "👾 Binary file: $file ($mimetype)"
@@ -584,4 +595,13 @@ icat() {
    hline >&2
 }
 
-complete -F _deploy_completion deploy-app deploy-hugo
+imgls() {
+   # cli alias shows most recent last to show it on the screen first.
+   # With the DIY pager i want to see the most recent first
+   local files=()
+   local dir="${1:-.}"
+   local max_display_height=3
+   mapfile -t files < <(\ls -1 -t "$dir")
+
+   icat --no-pager -$max_display_height "${files[@]}" || return 1
+}
