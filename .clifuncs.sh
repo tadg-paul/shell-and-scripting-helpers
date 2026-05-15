@@ -525,21 +525,22 @@ icat() {
    ensure_term_size
    local fixed_height=0
    local pager=true
-   local stdin=false
+   local args=()
+   local dir_files
 
    while [ $# -gt 0 ]; do
       if [[ "$1" == "--" ]]; then
          shift
          break
-      elif [[ "$1" == "-" ]]; then
-         stdin=true
       elif [[ "$1" =~ ^-([0-9]+)$ ]]; then
          fixed_height=${BASH_REMATCH[1]}
       elif [[ "$1" =~ ^--?(n|no-pager)?$ ]]; then
          pager=false
+      elif [ -d "$1" ]; then
+         mapfile -t dir_files < <(ls -1 -tr "$1")
+         args+=("${dir_files[@]}")
       else
-         args=("$@")
-         break
+         args+=("$1")
       fi
       shift
    done
@@ -566,15 +567,14 @@ icat() {
       fi
    }
 
-   local file mime mime_type mime_encoding
+   local file
    for file in "${args[@]}"; do
       if ! [ -e "$file" ]; then
          errortext "No such file: $file"
          continue
       fi
 
-      filename "$file\n"
-      echo
+      hline "🖻 $file"
       display_lines=$((display_lines + 1))
 
       read -r mimetype < <(mimetype "$file")
@@ -601,17 +601,36 @@ icat() {
 }
 
 imgls() {
-   # cli alias shows most recent last to show it on the screen first.
-   # With the DIY pager i want to see the most recent first
-   local files=()
-   local dir="${1:-.}"
-   local max_display_height=$((LINES/4))
-   if [ $max_display_height -lt 7 ]; then
-      max_display_height=7
+   local images=()
+   local grid dir_images
+   ensure_term_size
+
+   if [ $# -eq 0 ]; then
+      args=(.)
+   else
+      args=($@)
    fi
 
-   mapfile -t files < <(\ls -1 -t "$dir")
-   files=("${files[@]/#/$dir/}")
+   for arg in "${args[@]}"; do
+      if [ -d "$arg" ]; then
+         mapfile -t dir_images < <(cd "$arg" && ls -1 -tr -- *.{jpg,jpeg,png,gif,webp} 2>/dev/null)
+         for i in "${dir_images[@]}"; do
+            images+=("$arg/$i")
+         done
+      elif [ -f "$arg" ]; then
+         if magick identify "$arg" >/dev/null 2>&1; then
+            images+=("$arg")
+         else
+            warn "Not an image file: $arg"
+         fi
+      else
+         errortext "No such file or directory: $arg"
+      fi
+   done
 
-   icat --no-pager -$max_display_height "${files[@]}" || return 1
+   # size up the grid, aim for approx 25-30 col wide
+   grid="$((COLUMNS / 30))x1"
+   constrain_height=14
+
+   timg --grid=$grid -gx$constrain_height --upscale=i --center --title --frames=1 "${images[@]}"
 }

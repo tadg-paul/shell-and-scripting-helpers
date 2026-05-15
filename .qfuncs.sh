@@ -1148,14 +1148,22 @@ oneline() {
 nowrap() {
    # this function outputs text but truncates if it exceeds the terminal width
    # or -n if specified e.g. 'ls -l | nowrap -n20' to truncate to 20 chars
+   # -q for quiet, result in REPLY
    # reads from stdin
    local trunc_txt="..."
-   if [[ "$1" =~ ^-([0-9]+)$ ]]; then
-      local maxcols="${BASH_REMATCH[1]}"
-   else
-      ensure_term_size
-      local maxcols=$((COLUMNS - 1))
-   fi
+   local quiet=false
+
+   ensure_term_size
+   local maxcols=$((COLUMNS - 1))
+
+   while [ $# -gt 0 ]; do
+      if [[ "$1" =~ ^-([0-9]+)$ ]]; then
+         local maxcols="${BASH_REMATCH[1]}"
+      elif [[ $1 =~ ^--?q(uiet)?$ ]]; then
+         local quiet=true
+      fi
+      shift
+   done
 
    local maxcols_truncated=$((maxcols - ${#trunc_txt}))
    while read -r nowrap_line; do
@@ -1166,8 +1174,17 @@ nowrap() {
             nowrap_line="${nowrap_line:0:$maxcols}"
          fi
       fi
-      echo "${nowrap_line}"
+      REPLY="$nowrap_line"
+      if ! $quiet; then
+         echo -n "${nowrap_line}"
+      fi
    done
+}
+
+truncate() {
+   # wrapper for nowrap with newline
+   nowrap "$@"
+   echo
 }
 
 lsd_maybe() {
