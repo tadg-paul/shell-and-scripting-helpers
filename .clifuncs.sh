@@ -481,7 +481,7 @@ imgcat() {
    ensure_term_size
 
    local fixed_height=0
-   if [[ $1 =~ ^-([0-9]+])$ ]]; then
+   if [[ $1 =~ ^-([0-9]+)$ ]]; then
       fixed_height=${BASH_REMATCH[1]}
       shift
    fi
@@ -490,6 +490,7 @@ imgcat() {
    local aspect_ratio_terminal_viewport aspect_ratio_image image_is_short max_display_height
 
    if [ $fixed_height -gt 0 ]; then
+      max_display_height=$fixed_height
       wezterm_opts=(--height $fixed_height)
    else
       aspect_ratio_terminal_viewport="$COLUMNS/$((LINES - 2))"
@@ -572,13 +573,18 @@ icat() {
          continue
       fi
 
-      hline "📃 $file"
+      filename "$file\n"
+      echo
       display_lines=$((display_lines + 1))
 
       read -r mimetype < <(mimetype "$file")
 
       if [[ "$mimetype" == image/* ]]; then
-         imgcat -$fixed_height "$file"
+         if [ $fixed_height -gt 0 ]; then
+            imgcat -$fixed_height "$file"
+         else
+            imgcat "$file"
+         fi
          display_increment $REPLY || return 0
       elif is_binary "$file"; then
          echo "👾 Binary file: $file ($mimetype)"
@@ -590,7 +596,6 @@ icat() {
          done
       fi
 
-      shift
    done
    hline >&2
 }
@@ -600,8 +605,13 @@ imgls() {
    # With the DIY pager i want to see the most recent first
    local files=()
    local dir="${1:-.}"
-   local max_display_height=3
+   local max_display_height=$((LINES/4))
+   if [ $max_display_height -lt 7 ]; then
+      max_display_height=7
+   fi
+
    mapfile -t files < <(\ls -1 -t "$dir")
+   files=("${files[@]/#/$dir/}")
 
    icat --no-pager -$max_display_height "${files[@]}" || return 1
 }
