@@ -1085,7 +1085,7 @@ blockchart() {
 debugg() {
    if [ -n "$debug" ] && [[ "$debug" != "false" ]]; then
       echo "🐞 $*"
-   fi
+   fi >&2
 }
 
 random_hex() {
