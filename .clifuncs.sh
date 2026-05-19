@@ -1,7 +1,7 @@
 . ~/.qfuncs.sh
 PATH="$PATH":~/code/personal/samizdat/scripts:/opt/samizdat/scripts
 
-[[ "$user_interactive" == "true" ]] || return
+# is_interactive || return
 
 yt_get_title() {
    # yt-dlp just get the title and return it to stdout
@@ -473,4 +473,14 @@ convert() {
    # wrapper for magick
    info "Run: magick $*"
    magick "$@"
+}
+
+cat() {
+   if is_interactive; then
+      ic "$@"
+   elif command -v bat >/dev/null 2>&1; then
+      bat "$@"
+   else
+      command cat "$@"
+   fi
 }
