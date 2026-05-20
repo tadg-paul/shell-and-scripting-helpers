@@ -648,16 +648,18 @@ show_cmd_execute() {
 
    local bright=$'\e[1m' yellow=$'\e[0;33m' reset=$'\e[0m'
 
-   echo -e "⚡️ ${bright}$*${reset}"
+   echo -e "⚡️ ${bright}$*${reset}" >/dev/stderr
    "$@"
    rc=$?
 
-   if [ $rc -eq 0 ]; then
-      echo -ne "🟢"
-   else
-      echo -ne "🔴"
-   fi
-   echo " $rc"
+   {
+      if [ $rc -eq 0 ]; then
+         echo -ne "🟢"
+      else
+         echo -ne "🔴"
+      fi
+      echo " $rc"
+   } >/dev/stderr
 
    return $rc
 }
