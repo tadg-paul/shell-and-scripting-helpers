@@ -471,7 +471,7 @@ convert() {
 }
 
 cat() {
-   if is_interactive; then
+   if is_interactive && command -v ic >/dev/null 2>&1; then
       ic "$@"
    elif command -v bat >/dev/null 2>&1; then
       bat "$@"
