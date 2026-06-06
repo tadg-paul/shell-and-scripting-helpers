@@ -1619,6 +1619,53 @@ mv_bak() {
    fi
 }
 
+rm_if_empty() {
+   # remove file if it exists and is empty
+   if [ -e "$1" ] && [ ! -s "$1" ]; then
+      trash -v "$1"
+      info "removed empty file: $1"
+   else
+      errortext "file not empty or not found: $1"
+      top_n_tail "$1"
+      return 1
+   fi
+}
+
+top_n_tail() {
+   # usage: top_n_tail [-N] FILE
+   # outputs the first and last N lines of FILE, default N=10
+   local default_n=5
+   if [ $LINES -gt 0 ]; then
+      default_n=$((LINES / 3))
+      if [ $default_n -lt 1 ]; then
+         default_n=1
+      fi
+   fi
+   if [[ "$1" =~ ^-([0-9]+)$ ]]; then
+      local n="${BASH_REMATCH[1]}"
+      shift
+   else
+      local n="$default_n"
+   fi
+
+   [ -r "$1" ] || {
+      errortext "file not found or not readable: $1"
+      return 1
+   }
+
+   read -r lines < <(wc -l <"$1")
+   if [ "$lines" -le $((2 * n)) ]; then
+      command cat "$1"
+      return 0
+   else
+      hline "$1" >&2
+      head -n "$n" "$1"
+      echo "..."
+      tail -n "$n" "$1"
+   fi
+
+}
+
 clean_up_plain_text() {
    # usage: command_outputs_to_stdin | clean_up_plaintext
    #        (outputs to STDOUT)
