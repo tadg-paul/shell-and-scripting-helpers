@@ -2001,3 +2001,12 @@ is_image() {
 
    return 1
 }
+
+function ln () {
+   # wrapper for ln to handle macos vs linux differences in flags
+   if [[ $_os == Darwin ]]; then
+      command gln "$@"
+   else
+      command ln "$@"
+   fi
+}
