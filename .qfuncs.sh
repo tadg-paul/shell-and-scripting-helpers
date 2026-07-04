@@ -1565,7 +1565,8 @@ cp_bak() {
    # puts the backup item in REPLY
 
    if [ $# -eq 0 ]; then
-      die "cp_bak_if: no file specified"
+      errortext "cp_bak_if: no file specified"
+      return 1
    fi
    local src="${1%/}" #  remove trailing '/' in case it's a directory!
    local bak_target="$src.bak"
@@ -1590,7 +1591,8 @@ mv_bak_if() {
    # puts the backup item in REPLY
 
    if [ $# -eq 0 ]; then
-      die "mv_bak_if: no file specified"
+      errortext "mv_bak_if: no file specified"
+      return 1
    fi
    local src="${1%/}" #  remove trailing '/' in case it's a directory!
    local bak_target="$src.bak"
