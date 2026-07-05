@@ -469,3 +469,16 @@ convert() {
    info "Run: magick $*"
    magick "$@"
 }
+
+duh () {
+   if [[ $1 =~ ^-([0-9]+)$ ]]; then
+      depth=${BASH_REMATCH[1]}
+      shift
+   else
+      depth=1
+   fi
+
+   target="${1:-.}"
+
+   du -hd1 "$target"/* | sort -h
+}
