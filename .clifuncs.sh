@@ -470,7 +470,7 @@ convert() {
    magick "$@"
 }
 
-duh () {
+duh() {
    if [[ $1 =~ ^-([0-9]+)$ ]]; then
       depth=${BASH_REMATCH[1]}
       shift
@@ -481,4 +481,22 @@ duh () {
    target="${1:-.}"
 
    du -hd1 "$target"/* | sort -h
+}
+
+quicktts() {
+   if [ -z "$AUTHOR" ] || [ -z "$TITLE" ]; then
+      errortext "AUTHOR and TITLE environment variables must be set"
+      return 1
+   fi
+
+   for f in "$@"; do
+      if [ -e "$f.m4a" ]; then
+         warn "$f.m4a already exists, skipping"
+      elif ! [ -e "$f" ]; then
+         errortext "$f does not exist, skipping"
+      else
+         info "Generating TTS for $f"
+         show_cmd tts-openai --author "$AUTHOR" --title "$TITLE" "$f"
+      fi
+   done
 }
