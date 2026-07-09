@@ -484,10 +484,8 @@ duh() {
 }
 
 quicktts() {
-   if [ -z "$AUTHOR" ] || [ -z "$TITLE" ]; then
-      errortext "AUTHOR and TITLE environment variables must be set"
-      return 1
-   fi
+   local AUTHOR='Taḋg Paul'
+   local TITLE='About Time'
 
    for f in "$@"; do
       if [ -e "$f.m4a" ]; then
