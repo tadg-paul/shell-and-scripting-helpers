@@ -498,3 +498,27 @@ quicktts() {
       fi
    done
 }
+
+cxword() {
+   word="${1:-$word}"
+   ch="${2:-$ch}"
+
+   # temp func for manuscript editing
+   if [ -z "$word" ] || [ -z "$ch" ]; then
+      errortext "\$word and \$ch must be set in the environment"
+      return 1
+   fi
+
+   local chapter_file
+   read -r chapter_file < <(fd -g ch"$ch".md -d2)
+   [ -r "$chapter_file" ] || {
+      errortext "Chapter file $chapter_file not found"
+      return 1
+   }
+
+   # set up separator as $((COLUMNS-1)) many asterisks
+   separator="$(printf '%*s' $((COLUMNS - 1)) '' | tr ' ' '*')"
+
+   # use ggrep to show and highlight use of each word in context of the chapter
+   ggrep -i -C 3 -n -P --color=always --group-separator="$separator" "\b${word}\b" "$chapter_file" | less
+}
