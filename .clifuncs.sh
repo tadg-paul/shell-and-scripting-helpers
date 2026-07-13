@@ -485,7 +485,7 @@ duh() {
 
 quicktts() {
    local AUTHOR='Taḋg Paul'
-   local TITLE='About Time'
+   local TITLE='A Thing That Could Break'
 
    for f in "$@"; do
       if [ -e "$f.m4a" ]; then
