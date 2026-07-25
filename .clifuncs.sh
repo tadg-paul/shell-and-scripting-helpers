@@ -522,3 +522,12 @@ cxword() {
    # use ggrep to show and highlight use of each word in context of the chapter
    ggrep -i -C 3 -n -P --color=always --group-separator="$separator" "\b${word}\b" "$chapter_file" | less
 }
+
+# shellcheck disable=SC2120
+pbcopy () {
+   if [ $# -gt 0 ] && [ -r "$1" ]; then
+      command pbcopy < "$1"
+   else
+      command pbcopy
+   fi
+}
