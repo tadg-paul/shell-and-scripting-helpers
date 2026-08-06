@@ -1938,6 +1938,16 @@ github_repo_url() {
    fi
 }
 
+add_commit_files_recursive() {
+   local fallback_commit_msg="${FUNCNAME[*]} via ${BASH_SOURCE[*]}"
+   git add --all
+   if [ -n "$(git status --porcelain)" ]; then
+      show_cmd_execute git commit -m "${1:-$fallback_commit_msg}"
+   else
+      info "$PWD: No changes to commit."
+   fi
+}
+
 is_binary() {
    local file="$1"
    local encoding
@@ -2004,7 +2014,7 @@ is_image() {
    return 1
 }
 
-function ln () {
+function ln() {
    # wrapper for ln to handle macos vs linux differences in flags
    if [[ $_os == Darwin ]]; then
       command gln "$@"
