@@ -464,6 +464,25 @@ _deploy_completion() {
 
 complete -F _deploy_completion deploy-app deploy-hugo deploy-nix
 
+_deploy_host_completion() {
+   # Complete .yaml filenames from . and ./config/, stripping path and extension
+   local cur
+   COMPREPLY=()
+   cur="${COMP_WORDS[COMP_CWORD]}"
+
+   local files=()
+   mapfile -t files < <(compgen -G "${cur}*.yaml" 2>/dev/null)
+   mapfile -t -O "${#files[@]}" files < <(compgen -G ~/code/exodan/${cur}* 2>/dev/null)
+
+   # Strip config/ prefix and .yaml suffix
+   files=("${files[@]#config/}")
+   files=("${files[@]%.yaml}")
+
+   COMPREPLY=("${files[@]}")
+}
+
+complete -F _deploy_host_completion vps-rebuild
+
 convert() {
    # wrapper for magick
    info "Run: magick $*"
