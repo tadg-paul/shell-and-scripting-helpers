@@ -818,6 +818,13 @@ nicepath() {
    fi
 }
 
+nicepath_print(){
+   # get nicepath and print it to stdout
+   local nice_path
+   nicepath "$1"
+   echo "$REPLY"
+}
+
 deprecated() {
 
    case $1 in
