@@ -550,3 +550,12 @@ pbcopy () {
       command pbcopy
    fi
 }
+
+function mv () {
+   # checks if we are inside a git work tree, and uses `git mv` if so
+   if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      show_cmd git mv "$@"
+   else
+      show_cmd gmv "$@"
+   fi
+}
