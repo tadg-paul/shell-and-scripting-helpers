@@ -355,6 +355,7 @@ qtail() {
    #TODO: support STDIN
 }
 
+#shellcheck disable=SC2120
 uuid() {
    # WTF: quickly generate a UUID (aka GUID)
    # USAGE: uuid [VAR]
@@ -393,6 +394,24 @@ uuid() {
       echo -n "$theuuid"
    else
       printf -v "$1" '%s' "$theuuid"
+   fi
+}
+
+randomstring() {
+   # return random string of specified length (default 32)
+   local printme=true
+
+   if [[ "$1" == "-q" ]] || [[ "$1" == "--quiet" ]]; then
+      printme=false
+      shift
+   fi
+
+   local n=${1:-32}
+   read -r REPLY < <(base32 /dev/random)
+   REPLY="${REPLY:0:$n}"
+
+   if $printme; then
+      echo -n "$REPLY"
    fi
 }
 
@@ -818,7 +837,7 @@ nicepath() {
    fi
 }
 
-nicepath_print(){
+nicepath_print() {
    # get nicepath and print it to stdout
    local nice_path
    nicepath "$1"
